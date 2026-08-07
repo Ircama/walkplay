@@ -359,7 +359,25 @@
       try { h(ev); } catch (e) { console.error('[hidws] disconnect handler error:', e); }
     });
     state.disconnectHandlers = [];
+    // Also tear down the app's own connected state so the top-bar button
+    // returns to "Connect local"/"Connect remote" instead of staying on
+    // "Disconnect" after the remote device is closed (panel button or a
+    // dropped backend connection).
+    disconnectAppDevice();
     syncModeUI();
+  }
+
+  // Reset the app's connected state by triggering its own Disconnect button
+  // (the top bar .connect-btn shows "Disconnect"/"断开" while deviceConnect is
+  // true). Clicking it runs the app's disconnect flow (setDevice(null), etc.).
+  function disconnectAppDevice() {
+    var btn = document.querySelector('.connect-btn');
+    if (!btn) return;
+    var txt = (btn.textContent || '').replace(/\s+/g, ' ').trim();
+    var isDisconnect = txt === 'Disconnect' || txt === '断开' || txt === '断开连接';
+    if (isDisconnect) {
+      try { btn.click(); } catch (e) { console.error('[hidws] app disconnect click error:', e); }
+    }
   }
 
   var hidProxy = {
@@ -815,6 +833,18 @@
   }
 
   var userNoticeTimer = null;
+  // Optional portal login: the app works locally without an account, but a
+  // "Login" link is offered so users who have portal credentials (and reach a
+  // backend) can still log in. Keeps the no-login local default intact.
+  function goToLogin() {
+    var baseEl = document.querySelector('base');
+    var base = '/walkplay/';
+    if (baseEl && baseEl.getAttribute('href')) {
+      base = baseEl.getAttribute('href');
+      if (base.slice(-1) !== '/') base += '/';
+    }
+    window.location.href = base + 'login';
+  }
   function ensureUserNotice() {
     var avatar = document.querySelector('.head .avatar-img');
     if (!avatar || avatar.__wpNotice) return;
@@ -823,7 +853,14 @@
     avatar.addEventListener('click', function () {
       var notice = document.getElementById('wp-hidws-user-notice');
       if (!notice) {
-        notice = makeElement('div', { id: 'wp-hidws-user-notice' }, 'Local mode \u2014 no account needed. (hidws / Log controls above)');
+        notice = makeElement('div', { id: 'wp-hidws-user-notice' }, '');
+        notice.appendChild(makeElement('span', {}, 'Local mode. No portal account connected.'));
+        var loginBtn = makeElement('button', { type: 'button', class: 'wp-hidws-notice-login' }, 'Login (optional)');
+        loginBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          goToLogin();
+        });
+        notice.appendChild(loginBtn);
         document.body.appendChild(notice);
         ui = ui || {};
         ui.userNotice = notice;
@@ -834,7 +871,7 @@
       userNoticeTimer = setTimeout(function () {
         notice.style.opacity = '0';
         notice.style.transform = 'translateY(-6px)';
-      }, 2500);
+      }, 4000);
     });
   }
 
@@ -882,6 +919,13 @@
   var COMPANY_REPLACEMENTS = [
     ['青岛王中王科技有限公司', 'Qingdao Wangzhongwang Technology Co., Ltd.'],
     ['青岛王中王科技', 'Qingdao Wangzhongwang Technology'],
+    // Firmware version-check status messages returned by the backend (e.g.
+    // "Current device version: 0.1（已经是最新版本）").
+    ['已经是最新版本', 'already the latest version'],
+    ['当前已是最新版本', 'already the latest version'],
+    ['需要升级', 'upgrade required'],
+    ['有新的固件版本', 'a new firmware version is available'],
+    ['有新的版本', 'a new version is available'],
   ];
   function applyCompanyNameReplacements(root) {
     if (!root || !root.nodeType) return;
@@ -990,7 +1034,10 @@
     '.wp-hidws-log-dir-info { color:#909399 !important; }',
     '.wp-hidws-log-footer { padding:8px 14px !important; border-top:1px solid #3a3a3a !important; color:#909399 !important; font-size:12px !important; min-height:14px !important; }',
     // --- user (avatar) local notice toast ---
-    '#wp-hidws-user-notice { position:fixed !important; top:64px !important; right:20px !important; z-index:2147483003 !important; background:#1f1f1f !important; color:#e5eaf3 !important; border:1px solid #3a3a3a !important; border-radius:8px !important; padding:10px 14px !important; font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; box-shadow:0 6px 20px rgba(0,0,0,.45) !important; opacity:0; transform:translateY(-6px); transition:opacity .25s ease, transform .25s ease; pointer-events:none !important; }',
+    '#wp-hidws-user-notice { position:fixed !important; top:64px !important; right:20px !important; z-index:2147483003 !important; background:#1f1f1f !important; color:#e5eaf3 !important; border:1px solid #3a3a3a !important; border-radius:8px !important; padding:10px 14px !important; font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; box-shadow:0 6px 20px rgba(0,0,0,.45) !important; opacity:0; transform:translateY(-6px); transition:opacity .25s ease, transform .25s ease; pointer-events:none; }',
+    '#wp-hidws-user-notice { display:flex !important; flex-direction:column !important; gap:8px !important; align-items:flex-start !important; }',
+    '#wp-hidws-user-notice .wp-hidws-notice-login { pointer-events:auto !important; background:#1668dc !important; color:#fff !important; border:none !important; border-radius:6px !important; padding:6px 12px !important; font:600 12px/1 system-ui,sans-serif !important; cursor:pointer !important; }',
+    '#wp-hidws-user-notice .wp-hidws-notice-login:hover { filter:brightness(1.1) !important; }',
   ].join('\n');
   document.head.appendChild(style);
 
