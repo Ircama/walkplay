@@ -2,7 +2,7 @@
 
 This repository is a self-contained, offline copy of the [WalkPlay PEQ web app](https://peq.szwalkplay.com/) (`https://peq.szwalkplay.com/`) wrapped in a **Vite** project so it can be run locally in VS Code and deployed to **GitHub Pages**.
 
-The app lets you control a WalkPlay audio device (parametric equalizer, DAC filters, firmware upgrade, etc.) directly in the browser. **A real WalkPlay device connected over USB / WebHID is required to use most functions** — plus a WalkPlay account (the app talks to the official `www.szwalkplay.com/api` backend for login / presets).
+The app lets you control a WalkPlay audio device (parametric equalizer, DAC filters, firmware upgrade, etc.) directly in the browser. **A real WalkPlay device connected over USB / WebHID is required to use most functions** — the portal itself no longer requires a WalkPlay account: the router auth guard is disabled so the EQ dashboard opens directly, and the user/person-center dialog (which used the portal's account info) is neutralized.
 
 ## Stack
 
@@ -57,21 +57,24 @@ The prebuilt bundle expects to be served from a domain root, but this project is
 
 `dist/404.html` is an SPA fallback generated from the built `index.html` by the `spa404` plugin in `vite.config.js`, so GitHub Pages serves the app for deep links instead of a 404.
 
-## Remote hidws backend
+## Remote hidws backend + HID log
 
 [`public/hidws.js`](public/hidws.js) adds an optional **Remote** connection mode that talks to a [`hidws`](https://github.com/Ircama/hidws) WebSocket backend instead of (or in addition to) WebHID — the same transport used by kt02h20-control / Audiocular-Aura / fiiocontrol.
 
-A floating **hidws** control panel is added to the page:
+A **"hidws"** button and a **"Log"** button are injected into the dashboard top bar, between the app's **Connect** button and the round user avatar (on non-dashboard pages a floating fallback button is shown):
 
-- **Mode toggle** — `Local (WebHID)` (the browser's own WebHID, used by the app's "Connect" button) or `Remote (hidws)`.
-- In **Remote** mode: backend URL (default `ws://localhost:9001`), **List devices**, a device selector and status.
-- **Connect via hidws** — performs the whole remote connection (list → open) and hands the device to the app. When Remote mode is active, `navigator.hid` is proxied so the app's own "Connect" flow also routes through the hidws backend; `requestDevice()`, `getDevices()`, `open()`, `sendReport()`, `sendFeatureReport()` and `inputreport` events are all forwarded over the WebSocket.
+- **hidws** — toggles the remote-connection panel:
+  - **Mode toggle** — `Local (WebHID)` (the browser's own WebHID, used by the app's "Connect" button) or `Remote (hidws)`.
+  - In **Remote** mode: backend URL (default `ws://localhost:9001`), **List devices**, a device selector and status.
+  - **Connect via hidws** — performs the whole remote connection (list → open) and hands the device to the app. When Remote mode is active, `navigator.hid` is proxied so the app's own "Connect" flow also routes through the hidws backend; `requestDevice()`, `getDevices()`, `open()`, `sendReport()`, `sendFeatureReport()` and `inputreport` events are all forwarded over the WebSocket.
+- **Log** — opens a modal with the **HID interaction log** (like kt02h20-control): timestamped TX/RX reports (sendReport / sendFeatureReport / inputreport / receiveFeatureReport) captured from **both** local (WebHID) and remote (hidws) sessions, with Clear / Copy / Close actions.
 
 The connection mode and backend URL persist in `localStorage` (`walkplay_conn_mode`, `walkplay_remote_url`).
 
 ## Notes
 
-- **No WalkPlay backend**: the original app talks to `www.szwalkplay.com/api` endpoints (login, presets, etc.). Those calls go to the official backend; if unreachable they will fail gracefully. Local-device (WebHID / hidws) features do not depend on them.
+- **No login / no portal account**: the auth router guard is disabled and the `/` dashboard opens without login. The user (avatar) button no longer opens the portal "person center" dialog and never uses the original portal's credentials or account information — clicking it shows a short local-mode notice. The selected **language is saved locally** (`localStorage` `globalStore.language`) and the "Select Language" popup shows only the first time.
+- **No WalkPlay backend dependency for device features**: local-device (WebHID / hidws) features do not depend on the portal. The app still calls a few harmless config/notification endpoints on the official backend; login / presets / account endpoints are no longer used by the app flow.
 - **WebHID**: a WebHID-capable browser (Chrome / Edge / Opera) and a connected WalkPlay device are required for local device control.
 - **hidws**: run the `hidws` daemon on a machine that has the device plugged in, then connect from the app via `ws://host:9001` (or `wss://`). Because GitHub Pages is HTTPS, a plain `ws://` LAN backend is blocked by the browser as mixed content — use `ws://localhost:9001` (backend on this PC) or expose hidws over `wss://`, or open the app from `http://localhost` instead.
 
