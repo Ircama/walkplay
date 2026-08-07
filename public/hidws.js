@@ -762,12 +762,12 @@
 
     if (!topRight) {
       // No dashboard header: show the floating fallback button(s).
-      if (fab && fab.style.display !== 'flex') fab.style.display = 'flex';
+      if (fab) fab.classList.remove('wp-hidws-hidden');
       return;
     }
 
     // Hide the floating fallback when the header is present.
-    if (fab) fab.style.display = 'none';
+    if (fab) fab.classList.add('wp-hidws-hidden');
 
     if (!panelBtn) {
       panelBtn = makeElement('button', { type: 'button', id: 'wp-hidws-top-fab', title: 'hidws remote connection' }, 'hidws');
@@ -850,6 +850,7 @@
     '.head .top-right { align-items:center !important; }',
     // --- floating fallback ---
     '#wp-hidws-fab { position:fixed !important; right:18px !important; bottom:18px !important; z-index:2147483000 !important; display:inline-flex !important; align-items:center !important; padding:9px 15px !important; font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; color:#fff !important; background:#1668dc !important; border:none !important; border-radius:20px !important; cursor:pointer !important; box-shadow:0 4px 14px rgba(0,0,0,.35) !important; user-select:none !important; }',
+    '#wp-hidws-fab.wp-hidws-hidden { display:none !important; }',
     '#wp-hidws-fab:hover { filter:brightness(1.1) !important; }',
     // --- connection panel ---
     '#wp-hidws-panel { position:fixed !important; right:18px !important; top:70px !important; z-index:2147483001 !important; width:300px !important; max-width:calc(100vw - 24px) !important; background:#1f1f1f !important; color:#e5eaf3 !important; border:1px solid #3a3a3a !important; border-radius:10px !important; box-shadow:0 10px 30px rgba(0,0,0,.5) !important; padding:12px !important; font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; }',
@@ -895,7 +896,7 @@
     '.wp-hidws-log-dir-info { color:#909399 !important; }',
     '.wp-hidws-log-footer { padding:8px 14px !important; border-top:1px solid #3a3a3a !important; color:#909399 !important; font-size:12px !important; min-height:14px !important; }',
     // --- user (avatar) local notice toast ---
-    '#wp-hidws-user-notice { position:fixed !important; top:64px !important; right:20px !important; z-index:2147483003 !important; background:#1f1f1f !important; color:#e5eaf3 !important; border:1px solid #3a3a3a !important; border-radius:8px !important; padding:10px 14px !important; font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; box-shadow:0 6px 20px rgba(0,0,0,.45) !important; opacity:0 !important; transform:translateY(-6px) !important; transition:opacity .25s ease, transform .25s ease !important; pointer-events:none !important; }',
+    '#wp-hidws-user-notice { position:fixed !important; top:64px !important; right:20px !important; z-index:2147483003 !important; background:#1f1f1f !important; color:#e5eaf3 !important; border:1px solid #3a3a3a !important; border-radius:8px !important; padding:10px 14px !important; font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; box-shadow:0 6px 20px rgba(0,0,0,.45) !important; opacity:0; transform:translateY(-6px); transition:opacity .25s ease, transform .25s ease; pointer-events:none !important; }',
   ].join('\n');
   document.head.appendChild(style);
 
@@ -919,8 +920,8 @@
       if (topRight !== lastTopRight) {
         lastTopRight = topRight;
         ensureTopBarButtons();
-        if (topRight) { if (ui && ui.fab) ui.fab.style.display = 'none'; }
-        else if (ui && ui.fab) ui.fab.style.display = 'flex';
+        if (topRight) { if (ui && ui.fab) ui.fab.classList.add('wp-hidws-hidden'); }
+        else if (ui && ui.fab) ui.fab.classList.remove('wp-hidws-hidden');
       }
     }, 800);
   }
