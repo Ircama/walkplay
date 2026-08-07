@@ -340,10 +340,15 @@
     selectedPid: null,
     disconnectHandlers: [],
   };
+  // The app bundle renders the Connect button label from window.__wpConnMode
+  // ("Connect local" / "Connect remote" when disconnected, "Disconnect" when a
+  // device is connected). Set it before the app bundle renders.
+  window.__wpConnMode = state.mode;
 
   function setMode(mode) {
     state.mode = mode === 'remote' ? 'remote' : 'local';
     try { localStorage.setItem(CONN_MODE_KEY, state.mode); } catch (e) {}
+    window.__wpConnMode = state.mode;
     syncModeUI();
   }
 
@@ -733,11 +738,16 @@
   }
 
   // Find the app's "Connect" button (dashboard top bar / upgrade page).
+  // NOTE: the app bundle renders the dashboard button as "Connect local" /
+  // "Connect remote" (via window.__wpConnMode), so those labels must be matched
+  // here too, otherwise the app's connect flow is never triggered after a hidws
+  // connect and the button never switches to "Disconnect".
   function findAppConnectButton() {
     var buttons = document.querySelectorAll('button');
     for (var i = 0; i < buttons.length; i++) {
       var txt = (buttons[i].textContent || '').replace(/\s+/g, ' ').trim();
-      if (txt === 'Connect' || txt === '连接' || txt === '连接设备' || txt === 'Connect device') return buttons[i];
+      if (txt === 'Connect' || txt === '连接' || txt === '连接设备' || txt === 'Connect device' ||
+          txt === 'Connect local' || txt === 'Connect remote') return buttons[i];
     }
     return null;
   }
@@ -839,18 +849,15 @@
     ui.fab = fab;
   }
 
-  // The app's Connect button shows its own "Connect" / "连接" text; make it
-  // reflect the active hidws mode ("Connect local" / "Connect remote"). Only
-  // touched while the app is in the disconnected state (its own Connect label);
-  // when connected it shows "Disconnect" and is left alone.
+  // The app's Connect button label is now rendered by the app bundle itself
+  // from window.__wpConnMode ("Connect local" / "Connect remote" when
+  // disconnected, "Disconnect" when a device is connected). We must NOT mutate
+  // the button's DOM text: replacing Vue's text node orphans the node Vue's vdom
+  // references, so Vue can never switch the label to "Disconnect" after a device
+  // connects. This poll only keeps window.__wpConnMode in sync; the visible
+  // label follows Vue's own re-renders.
   function updateConnectButton() {
-    var btn = document.querySelector('.connect-btn');
-    if (!btn) return;
-    var txt = (btn.textContent || '').replace(/\s+/g, ' ').trim();
-    var isConnect = txt === 'Connect' || txt === '连接' || txt === 'Connect local' || txt === 'Connect remote';
-    if (!isConnect) return;
-    var label = state.mode === 'remote' ? 'Connect remote' : 'Connect local';
-    if (btn.textContent !== label) btn.textContent = label;
+    if (window.__wpConnMode !== state.mode) window.__wpConnMode = state.mode;
   }
 
   // The round user avatar has an empty src (no portal account) which renders a
@@ -878,33 +885,51 @@
   ];
   function applyCompanyNameReplacements(root) {
     if (!root || !root.nodeType) return;
-    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-    var changed = [];
-    var node;
-    while ((node = walker.nextNode())) {
-      var v = node.nodeValue;
+    // A text-node root: a TreeWalker never returns the root itself, so handle
+    // text nodes directly (used for characterData mutations).
+    if (root.nodeType === 3) {
+      var v = root.nodeValue;
       var nv = v;
       for (var i = 0; i < COMPANY_REPLACEMENTS.length; i++) {
         if (nv.indexOf(COMPANY_REPLACEMENTS[i][0]) !== -1) {
           nv = nv.split(COMPANY_REPLACEMENTS[i][0]).join(COMPANY_REPLACEMENTS[i][1]);
         }
       }
-      if (nv !== v) changed.push([node, nv]);
+      if (nv !== v) root.nodeValue = nv;
+      return;
     }
-    for (var j = 0; j < changed.length; j++) changed[j][0].nodeValue = changed[j][1];
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var changed = [];
+    var node;
+    while ((node = walker.nextNode())) {
+      var tv = node.nodeValue;
+      var tnv = tv;
+      for (var j = 0; j < COMPANY_REPLACEMENTS.length; j++) {
+        if (tnv.indexOf(COMPANY_REPLACEMENTS[j][0]) !== -1) {
+          tnv = tnv.split(COMPANY_REPLACEMENTS[j][0]).join(COMPANY_REPLACEMENTS[j][1]);
+        }
+      }
+      if (tnv !== tv) changed.push([node, tnv]);
+    }
+    for (var k = 0; k < changed.length; k++) changed[k][0].nodeValue = changed[k][1];
   }
   function observeCompanyNameReplacements() {
     applyCompanyNameReplacements(document.body);
     var obs = new MutationObserver(function (mutations) {
       for (var i = 0; i < mutations.length; i++) {
-        var added = mutations[i].addedNodes;
+        var m = mutations[i];
+        // In-place text edits (text node value set directly) need characterData.
+        if (m.type === 'characterData' && m.target && m.target.nodeType === 3) {
+          applyCompanyNameReplacements(m.target);
+          continue;
+        }
+        var added = m.addedNodes;
         for (var k = 0; k < added.length; k++) {
-          if (added[k].nodeType === 1) applyCompanyNameReplacements(added[k]);
-          else if (added[k].nodeType === 3) { applyCompanyNameReplacements(document.createTextNode(added[k].nodeValue)); }
+          if (added[k].nodeType === 1 || added[k].nodeType === 3) applyCompanyNameReplacements(added[k]);
         }
       }
     });
-    obs.observe(document.body, { childList: true, subtree: true });
+    obs.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
   /* Styling for the injected elements (dark theme, matches the WalkPlay app) */
