@@ -1,0 +1,19 @@
+{
+	"name": "walkplay-peq",
+	"private": true,
+	"version": "1.0.0",
+	"type": "module",
+	"description": "WalkPlay PEQ (Parametric Equalizer) — offline Vite wrapper for the extracted walkplay web app with hidws remote connection",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview"
+	},
+	"dependencies": {
+		"vue": "^3.4.31"
+	},
+	"devDependencies": {
+		"@vitejs/plugin-vue": "^5.0.5",
+		"vite": "^5.3.3"
+	}
+}
