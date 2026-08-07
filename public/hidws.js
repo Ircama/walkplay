@@ -635,7 +635,6 @@
 
   function buildLogModal() {
     var overlay = makeElement('div', { id: 'wp-hidws-log-overlay' }, '');
-    overlay.style.display = 'none';
 
     var modal = makeElement('div', { class: 'wp-hidws-log-modal' }, '');
 
@@ -728,7 +727,7 @@
 
   function setLogOpen(open) {
     logOpen = !!open;
-    if (ui && ui.logOverlay) ui.logOverlay.style.display = logOpen ? 'flex' : 'none';
+    if (ui && ui.logOverlay) ui.logOverlay.classList.toggle('wp-hidws-open', logOpen);
     if (logOpen) renderLog();
     if (ui && ui.logBtn) ui.logBtn.classList.toggle('wp-hidws-active', logOpen);
   }
@@ -840,11 +839,80 @@
     ui.fab = fab;
   }
 
+  // The app's Connect button shows its own "Connect" / "连接" text; make it
+  // reflect the active hidws mode ("Connect local" / "Connect remote"). Only
+  // touched while the app is in the disconnected state (its own Connect label);
+  // when connected it shows "Disconnect" and is left alone.
+  function updateConnectButton() {
+    var btn = document.querySelector('.connect-btn');
+    if (!btn) return;
+    var txt = (btn.textContent || '').replace(/\s+/g, ' ').trim();
+    var isConnect = txt === 'Connect' || txt === '连接' || txt === 'Connect local' || txt === 'Connect remote';
+    if (!isConnect) return;
+    var label = state.mode === 'remote' ? 'Connect remote' : 'Connect local';
+    if (btn.textContent !== label) btn.textContent = label;
+  }
+
+  // The round user avatar has an empty src (no portal account) which renders a
+  // broken image icon — give it a neutral local avatar fallback.
+  var DEFAULT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
+    '<rect width="40" height="40" rx="20" fill="#2a2a2a"/>' +
+    '<circle cx="20" cy="15" r="7" fill="#909399"/>' +
+    '<path d="M7 34c0-7.2 5.8-11 13-11s13 3.8 13 11v1H7z" fill="#909399"/>' +
+    '</svg>');
+  function ensureAvatarImage() {
+    var avatar = document.querySelector('.head .avatar-img');
+    if (!avatar) return;
+    var src = avatar.getAttribute('src') || '';
+    if (!src || src === 'undefined' || src === 'null') {
+      if (avatar.getAttribute('src') !== DEFAULT_AVATAR) avatar.setAttribute('src', DEFAULT_AVATAR);
+    }
+  }
+
+  // The original portal shows the vendor company name in Chinese; translate it
+  // anywhere it is rendered (notifications, config, footers, ...).
+  var COMPANY_REPLACEMENTS = [
+    ['青岛王中王科技有限公司', 'Qingdao Wangzhongwang Technology Co., Ltd.'],
+    ['青岛王中王科技', 'Qingdao Wangzhongwang Technology'],
+  ];
+  function applyCompanyNameReplacements(root) {
+    if (!root || !root.nodeType) return;
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    var changed = [];
+    var node;
+    while ((node = walker.nextNode())) {
+      var v = node.nodeValue;
+      var nv = v;
+      for (var i = 0; i < COMPANY_REPLACEMENTS.length; i++) {
+        if (nv.indexOf(COMPANY_REPLACEMENTS[i][0]) !== -1) {
+          nv = nv.split(COMPANY_REPLACEMENTS[i][0]).join(COMPANY_REPLACEMENTS[i][1]);
+        }
+      }
+      if (nv !== v) changed.push([node, nv]);
+    }
+    for (var j = 0; j < changed.length; j++) changed[j][0].nodeValue = changed[j][1];
+  }
+  function observeCompanyNameReplacements() {
+    applyCompanyNameReplacements(document.body);
+    var obs = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var added = mutations[i].addedNodes;
+        for (var k = 0; k < added.length; k++) {
+          if (added[k].nodeType === 1) applyCompanyNameReplacements(added[k]);
+          else if (added[k].nodeType === 3) { applyCompanyNameReplacements(document.createTextNode(added[k].nodeValue)); }
+        }
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+  }
+
   /* Styling for the injected elements (dark theme, matches the WalkPlay app) */
   var style = document.createElement('style');
   style.textContent = [
     // --- top bar buttons ---
     '#wp-hidws-top-fab, #wp-hidws-log-fab { display:inline-flex !important; align-items:center !important; justify-content:center !important; height:32px !important; min-width:44px !important; padding:0 10px !important; margin:0 0 0 8px !important; font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; color:#fff !important; background:#2a2a2a !important; border:1px solid #3a3a3a !important; border-radius:16px !important; cursor:pointer !important; user-select:none !important; white-space:nowrap !important; }',
+    '#wp-hidws-log-fab { margin:0 12px 0 8px !important; }',
     '#wp-hidws-top-fab:hover, #wp-hidws-log-fab:hover { filter:brightness(1.15) !important; }',
     '#wp-hidws-top-fab.wp-hidws-active, #wp-hidws-log-fab.wp-hidws-active { background:#1668dc !important; border-color:#1668dc !important; }',
     '.head .top-right { align-items:center !important; }',
@@ -876,7 +944,8 @@
     '.wp-hidws-status.wp-hidws-ok { color:#67c23a !important; }',
     '.wp-hidws-status.wp-hidws-error { color:#f56c6c !important; }',
     // --- log modal ---
-    '#wp-hidws-log-overlay { position:fixed !important; inset:0 !important; z-index:2147483002 !important; background:rgba(0,0,0,.6) !important; display:flex !important; align-items:center !important; justify-content:center !important; padding:24px !important; }',
+    '#wp-hidws-log-overlay { position:fixed !important; inset:0 !important; z-index:2147483002 !important; background:rgba(0,0,0,.6) !important; display:none; align-items:center !important; justify-content:center !important; padding:24px !important; }',
+    '#wp-hidws-log-overlay.wp-hidws-open { display:flex; }',
     '.wp-hidws-log-modal { background:#1f1f1f !important; color:#e5eaf3 !important; border:1px solid #3a3a3a !important; border-radius:10px !important; box-shadow:0 10px 30px rgba(0,0,0,.5) !important; width:min(1100px, 100%) !important; max-height:90vh !important; display:flex !important; flex-direction:column !important; font:13px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; }',
     '.wp-hidws-log-header { display:flex !important; align-items:center !important; gap:12px !important; padding:12px 14px !important; border-bottom:1px solid #3a3a3a !important; }',
     '.wp-hidws-log-header > span:first-child { font-weight:600 !important; }',
@@ -913,6 +982,7 @@
     buildLogModal();
     ensureFloatingFallback();
     ensureTopBarButtons();
+    observeCompanyNameReplacements();
 
     var lastTopRight = null;
     setInterval(function () {
@@ -923,6 +993,9 @@
         if (topRight) { if (ui && ui.fab) ui.fab.classList.add('wp-hidws-hidden'); }
         else if (ui && ui.fab) ui.fab.classList.remove('wp-hidws-hidden');
       }
+      ensureAvatarImage();
+      updateConnectButton();
+      if (document.title !== 'EQ Console') document.title = 'EQ Console';
     }, 800);
   }
   if (document.readyState === 'loading') {

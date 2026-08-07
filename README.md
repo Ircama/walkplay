@@ -65,9 +65,10 @@ A **"hidws"** button and a **"Log"** button are injected into the dashboard top 
 
 - **hidws** — toggles the remote-connection panel:
   - **Mode toggle** — `Local (WebHID)` (the browser's own WebHID, used by the app's "Connect" button) or `Remote (hidws)`.
+  - The app's **Connect** button reflects the active mode (`Connect local` / `Connect remote`).
   - In **Remote** mode: backend URL (default `ws://localhost:9001`), **List devices**, a device selector and status.
   - **Connect via hidws** — performs the whole remote connection (list → open) and hands the device to the app. When Remote mode is active, `navigator.hid` is proxied so the app's own "Connect" flow also routes through the hidws backend; `requestDevice()`, `getDevices()`, `open()`, `sendReport()`, `sendFeatureReport()` and `inputreport` events are all forwarded over the WebSocket.
-- **Log** — opens a modal with the **HID interaction log** (like kt02h20-control): timestamped TX/RX reports (sendReport / sendFeatureReport / inputreport / receiveFeatureReport) captured from **both** local (WebHID) and remote (hidws) sessions, with Clear / Copy / Close actions.
+- **Log** — opens a modal with the **HID interaction log** (like kt02h20-control): timestamped TX/RX reports (sendReport / sendFeatureReport / inputreport / receiveFeatureReport) captured from **both** local (WebHID) and remote (hidws) sessions, with Clear / Copy / Close actions. The modal is hidden by default and only opens when the Log button is pressed.
 
 The connection mode and backend URL persist in `localStorage` (`walkplay_conn_mode`, `walkplay_remote_url`).
 
