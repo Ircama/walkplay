@@ -349,6 +349,9 @@
     state.mode = mode === 'remote' ? 'remote' : 'local';
     try { localStorage.setItem(CONN_MODE_KEY, state.mode); } catch (e) {}
     window.__wpConnMode = state.mode;
+    // Update the reactive ref the bundle renders the Connect label from, so the
+    // button updates immediately on a mode switch (no stale "Connect remote").
+    if (window.__wpConnModeRef) window.__wpConnModeRef.value = state.mode;
     syncModeUI();
   }
 
@@ -886,15 +889,18 @@
     ui.fab = fab;
   }
 
-  // The app's Connect button label is now rendered by the app bundle itself
-  // from window.__wpConnMode ("Connect local" / "Connect remote" when
-  // disconnected, "Disconnect" when a device is connected). We must NOT mutate
-  // the button's DOM text: replacing Vue's text node orphans the node Vue's vdom
-  // references, so Vue can never switch the label to "Disconnect" after a device
-  // connects. This poll only keeps window.__wpConnMode in sync; the visible
-  // label follows Vue's own re-renders.
+  // The app's Connect button label is rendered by the app bundle from a reactive
+  // Vue ref (window.__wpConnModeRef) so it updates on hidws mode switches with no
+  // DOM mutation ("Connect local" / "Connect remote" when disconnected,
+  // "Disconnect" when a device is connected). We never mutate the button's text
+  // (that orphans Vue's text node so it can never switch to "Disconnect"). This
+  // poll keeps the plain __wpConnMode mirror (for the bundle's initial ref) and
+  // the reactive ref in sync with state.mode.
   function updateConnectButton() {
-    if (window.__wpConnMode !== state.mode) window.__wpConnMode = state.mode;
+    if (window.__wpConnMode !== state.mode) {
+      window.__wpConnMode = state.mode;
+      if (window.__wpConnModeRef) window.__wpConnModeRef.value = state.mode;
+    }
   }
 
   // The round user avatar has an empty src (no portal account) which renders a
