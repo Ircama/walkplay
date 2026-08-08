@@ -1052,6 +1052,19 @@
   ].join('\n');
   document.head.appendChild(style);
 
+  // Element Plus leaves a stale aria-disabled="true" on el-input-number inner
+  // inputs (set once at mount, never re-patched). It does not block editing, but
+  // it confuses assistive tech and accessibility snapshots, so reset it whenever
+  // the underlying input is actually enabled.
+  function fixStaleAriaDisabled() {
+    var els = document.querySelectorAll('input[aria-disabled="true"]');
+    for (var i = 0; i < els.length; i++) {
+      if (!els[i].disabled && !els[i].readOnly) {
+        els[i].setAttribute('aria-disabled', 'false');
+      }
+    }
+  }
+
   // Install proxy BEFORE the app bundle runs.
   installProxy();
 
@@ -1078,6 +1091,7 @@
       }
       ensureAvatarImage();
       updateConnectButton();
+      fixStaleAriaDisabled();
       if (document.title !== 'EQ Console') document.title = 'EQ Console';
     }, 800);
   }
