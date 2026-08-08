@@ -848,12 +848,23 @@
     }
     window.location.href = base + 'login';
   }
+  // The portal token lives in the app's "globalStore" localStorage object
+  // (written by the login flow as $store.set("token", ...)).
+  function hasPortalToken() {
+    try {
+      var gs = JSON.parse(localStorage.getItem('globalStore') || '{}');
+      return !!(gs && gs.token);
+    } catch (e) { return false; }
+  }
   function ensureUserNotice() {
     var avatar = document.querySelector('.head .avatar-img');
     if (!avatar || avatar.__wpNotice) return;
     avatar.__wpNotice = true;
     avatar.style.cursor = 'pointer';
     avatar.addEventListener('click', function () {
+      // Logged in: let the app's original User Information drawer open (the
+      // bundle gates it on the token) instead of showing the local notice.
+      if (hasPortalToken()) return;
       var notice = document.getElementById('wp-hidws-user-notice');
       if (!notice) {
         notice = makeElement('div', { id: 'wp-hidws-user-notice' }, '');
