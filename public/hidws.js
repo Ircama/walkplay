@@ -937,11 +937,13 @@
 
   // The round user avatar has an empty src (no portal account) which renders a
   // broken image icon — give it a neutral local avatar fallback.
+  // Matches the app's .avatar-img (32x32 round) so the fallback looks native
+  // during the brief load transition instead of a broken-image icon.
   var DEFAULT_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">' +
-    '<rect width="40" height="40" rx="20" fill="#2a2a2a"/>' +
-    '<circle cx="20" cy="15" r="7" fill="#909399"/>' +
-    '<path d="M7 34c0-7.2 5.8-11 13-11s13 3.8 13 11v1H7z" fill="#909399"/>' +
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
+    '<rect width="32" height="32" rx="16" fill="#1f2937"/>' +
+    '<circle cx="16" cy="12" r="6" fill="#9ca3af"/>' +
+    '<path d="M5 29c0-6.2 4.9-9.5 11-9.5S27 22.8 27 29v1H5z" fill="#9ca3af"/>' +
     '</svg>');
   function ensureAvatarImage() {
     var avatar = document.querySelector('.head .avatar-img');
@@ -994,6 +996,29 @@
       if (title) header.insertBefore(inBody, title.nextSibling);
       else header.appendChild(inBody);
     }
+  }
+
+  // Relocate the drawer Logout as soon as the drawer (or its logout button)
+  // renders, so it appears next to "User Information" immediately instead of
+  // waiting for the 800ms poll.
+  function watchDrawerLogout() {
+    var obs = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (m.type !== 'childList') continue;
+        var nodes = m.addedNodes;
+        for (var k = 0; k < nodes.length; k++) {
+          var n = nodes[k];
+          if (!n || n.nodeType !== 1) continue;
+          if ((n.classList && (n.classList.contains('logout-btn') || n.classList.contains('user-info-box') || n.classList.contains('el-drawer'))) ||
+              (n.querySelector && (n.querySelector('.logout-btn') || n.querySelector('.user-info-box')))) {
+            relocateDrawerLogout();
+            return;
+          }
+        }
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
   }
 
   // The portal login page keeps the local-first flow: a "Continue without
@@ -1179,6 +1204,7 @@
     ensureTopBarButtons();
     observeCompanyNameReplacements();
     watchAvatarImage();
+    watchDrawerLogout();
     ensureLoginLocalButton();
     relocateDrawerLogout();
 
