@@ -269,7 +269,28 @@
         'Fix: use ws://localhost:9001 (backend on this PC) OR expose the backend over wss://, ' +
         'OR open this app from http://localhost (or an http:// server on the LAN) instead of the https:// GitHub Pages site.';
     }
+    // A bad scheme (e.g. a "wws://" typo) throws before any connection attempt.
+    if (name === 'SyntaxError' || /scheme/i.test(msg) || /^wws:/i.test(url) || /^https?:/i.test(url)) {
+      var fixed = url ? url.replace(/^wws:/i, 'wss:') : '';
+      return 'Invalid WebSocket URL "' + url + '" - the scheme must be ws:// or wss://. Did you mean "' + fixed + '"?';
+    }
     return msg || (name || 'WebSocket error');
+  }
+
+  // A wss:// connection that failed on the wire (server unreachable, or the
+  // browser rejected the self-signed certificate) gets an actionable hint.
+  // Firefox in particular does not surface the certificate error in the
+  // WebSocket error event, so this explains what to do.
+  function wsFailHint(url) {
+    var isFirefox = /Firefox/i.test(navigator.userAgent || '');
+    if (/^wss:\/\//i.test(url)) {
+      var host = url.replace(/^wss:\/\//i, '').replace(/[/].*$/, '');
+      if (isFirefox) {
+        return 'Firefox could not connect over wss://. hidws uses a self-signed certificate; open "https://' + host + '/" once in Firefox, click "Advanced \u2192 Accept the Risk and Continue", then retry. Running hidws with --cert keeps the certificate stable so you only accept it once.';
+      }
+      return 'Secure WebSocket connection failed for "' + url + '". Make sure hidws is running and accept its self-signed certificate once (visit https://' + host + '/).';
+    }
+    return 'WebSocket connection failed for "' + url + '". Is the hidws backend running and reachable?';
   }
 
   function listRemoteDevices(url) {
@@ -286,7 +307,7 @@
           else if (msg.type === 'error') { try { ws.close(); } catch (e) {} reject(new Error(msg.message || 'Backend error')); }
         } catch (err) { try { ws.close(); } catch (e) {} reject(new Error('Invalid backend response')); }
       };
-      ws.onerror = function () { clearTimeout(timeout); reject(new Error('WebSocket connection failed')); };
+      ws.onerror = function () { clearTimeout(timeout); reject(new Error(wsFailHint(url))); };
       ws.onclose = function () { clearTimeout(timeout); };
     });
   }
@@ -323,7 +344,7 @@
           reject(new Error(msg.message || 'Failed to open device'));
         }
       };
-      ws.onerror = function () { clearTimeout(timeout); reject(new Error('WebSocket connection failed')); };
+      ws.onerror = function () { clearTimeout(timeout); reject(new Error(wsFailHint(url))); };
       ws.onclose = function () { clearTimeout(timeout); };
     });
   }
@@ -931,6 +952,70 @@
     }
   }
 
+  // Apply the avatar fallback the moment the app renders the (empty-src) avatar,
+  // so the broken-image icon does not flash during the initial ~1s transition
+  // (the 800ms poll alone is too slow for that first render).
+  function watchAvatarImage() {
+    var obs = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        if (m.type === 'attributes' && m.target && m.target.classList && m.target.classList.contains('avatar-img')) {
+          ensureAvatarImage();
+          return;
+        }
+        var added = m.addedNodes;
+        for (var k = 0; k < added.length; k++) {
+          if (!added[k] || added[k].nodeType !== 1) continue;
+          if (added[k].classList && added[k].classList.contains('avatar-img')) { ensureAvatarImage(); return; }
+          var av = added[k].querySelector ? added[k].querySelector('.head .avatar-img') : null;
+          if (av) { ensureAvatarImage(); return; }
+        }
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+  }
+
+  // Move the drawer's Logout button up into the header, right next to the
+  // "User Information" title (the app renders it at the bottom of the drawer
+  // body). Vue binds the click handler directly on the element, so relocating
+  // the node keeps Logout fully functional. Handles Vue re-renders by removing
+  // a body duplicate if the header one already exists.
+  function relocateDrawerLogout() {
+    var drawer = document.querySelector('.user-info-box.el-drawer');
+    if (!drawer) return;
+    var header = drawer.querySelector('.el-drawer__header');
+    var body = drawer.querySelector('.el-drawer__body');
+    if (!header || !body) return;
+    var inHeader = header.querySelector('.logout-btn');
+    var inBody = body.querySelector('.logout-btn');
+    if (inHeader && inBody) { inBody.remove(); return; }
+    if (inBody) {
+      var title = header.querySelector('.el-drawer__title');
+      if (title) header.insertBefore(inBody, title.nextSibling);
+      else header.appendChild(inBody);
+    }
+  }
+
+  // The portal login page keeps the local-first flow: a "Continue without
+  // login" link goes straight to the dashboard (no account needed).
+  function ensureLoginLocalButton() {
+    if (window.location.pathname.indexOf('/login') === -1) return;
+    if (document.getElementById('wp-login-local')) return;
+    var form = document.querySelector('.login-form-box') || document.querySelector('.login-box');
+    if (!form) return;
+    var btn = makeElement('a', {
+      id: 'wp-login-local',
+      class: 'wp-login-local-btn',
+      href: '/walkplay/'
+    }, 'Continue without login \u2192');
+    var buttonBox = form.querySelector('.button-box');
+    if (buttonBox && buttonBox.nextSibling) {
+      form.insertBefore(btn, buttonBox.nextSibling);
+    } else {
+      form.appendChild(btn);
+    }
+  }
+
   // The original portal shows the vendor company name in Chinese; translate it
   // anywhere it is rendered (notifications, config, footers, ...).
   var COMPANY_REPLACEMENTS = [
@@ -1003,6 +1088,9 @@
   style.textContent = [
     // --- top bar buttons ---
     '#wp-hidws-top-fab, #wp-hidws-log-fab { display:inline-flex !important; align-items:center !important; justify-content:center !important; height:32px !important; min-width:44px !important; padding:0 10px !important; margin:0 0 0 8px !important; font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; color:#fff !important; background:#2a2a2a !important; border:1px solid #3a3a3a !important; border-radius:16px !important; cursor:pointer !important; user-select:none !important; white-space:nowrap !important; }',
+    '#wp-login-local { display:block !important; margin:18px auto 0 !important; text-align:center !important; color:#1668dc !important; font:600 14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; text-decoration:none !important; cursor:pointer !important; }',
+    '.el-drawer__header .logout-btn { margin:0 0 0 12px !important; padding:6px 14px !important; height:auto !important; font-size:13px !important; }',
+    '.el-drawer__header { display:flex !important; align-items:center !important; }',
     '#wp-hidws-log-fab { margin:0 12px 0 8px !important; }',
     '#wp-hidws-top-fab:hover, #wp-hidws-log-fab:hover { filter:brightness(1.15) !important; }',
     '#wp-hidws-top-fab.wp-hidws-active, #wp-hidws-log-fab.wp-hidws-active { background:#1668dc !important; border-color:#1668dc !important; }',
@@ -1090,6 +1178,9 @@
     ensureFloatingFallback();
     ensureTopBarButtons();
     observeCompanyNameReplacements();
+    watchAvatarImage();
+    ensureLoginLocalButton();
+    relocateDrawerLogout();
 
     var lastTopRight = null;
     setInterval(function () {
@@ -1103,6 +1194,8 @@
       ensureAvatarImage();
       updateConnectButton();
       fixStaleAriaDisabled();
+      relocateDrawerLogout();
+      ensureLoginLocalButton();
       if (document.title !== 'EQ Console') document.title = 'EQ Console';
     }, 800);
   }
