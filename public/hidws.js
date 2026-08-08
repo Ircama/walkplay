@@ -974,7 +974,10 @@
         }
       }
     });
-    obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+    // Observe documentElement (available as soon as the <head> script runs) so
+    // the fallback is applied the instant the app renders the avatar, not only
+    // after DOMContentLoaded.
+    if (document.documentElement) obs.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
   }
 
   // Move the drawer's Logout button up into the header, right next to the
@@ -1018,7 +1021,7 @@
         }
       }
     });
-    obs.observe(document.body, { childList: true, subtree: true });
+    if (document.body) obs.observe(document.body, { childList: true, subtree: true });
   }
 
   // The portal login page keeps the local-first flow: a "Continue without
@@ -1105,7 +1108,7 @@
         }
       }
     });
-    obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+    if (document.body) obs.observe(document.body, { childList: true, subtree: true, characterData: true });
   }
 
   /* Styling for the injected elements (dark theme, matches the WalkPlay app) */
@@ -1114,12 +1117,16 @@
     // --- top bar buttons ---
     '#wp-hidws-top-fab, #wp-hidws-log-fab { display:inline-flex !important; align-items:center !important; justify-content:center !important; height:32px !important; min-width:44px !important; padding:0 10px !important; margin:0 0 0 8px !important; font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; color:#fff !important; background:#2a2a2a !important; border:1px solid #3a3a3a !important; border-radius:16px !important; cursor:pointer !important; user-select:none !important; white-space:nowrap !important; }',
     '#wp-login-local { display:block !important; margin:18px auto 0 !important; text-align:center !important; color:#1668dc !important; font:600 14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; text-decoration:none !important; cursor:pointer !important; }',
-    '.el-drawer__header .logout-btn { margin:0 0 0 12px !important; padding:6px 14px !important; height:auto !important; font-size:13px !important; }',
-    '.el-drawer__header { display:flex !important; align-items:center !important; }',
+    '.el-drawer__header .logout-btn { position:static !important; margin:0 0 0 12px !important; padding:6px 14px !important; height:auto !important; font-size:13px !important; flex:0 0 auto !important; }',
+    '.el-drawer__header { display:flex !important; align-items:center !important; justify-content:flex-start !important; gap:12px !important; }',
+    '.el-drawer__header .el-drawer__close-btn { margin-left:auto !important; }',
     '#wp-hidws-log-fab { margin:0 12px 0 8px !important; }',
     '#wp-hidws-top-fab:hover, #wp-hidws-log-fab:hover { filter:brightness(1.15) !important; }',
     '#wp-hidws-top-fab.wp-hidws-active, #wp-hidws-log-fab.wp-hidws-active { background:#1668dc !important; border-color:#1668dc !important; }',
     '.head .top-right { align-items:center !important; }',
+    // Dark round fallback behind the empty-src avatar so no jarring gap shows
+    // before the SVG data-URI fallback is injected.
+    '.head .avatar-img { background:#2a2a2a !important; }',
     // --- floating fallback ---
     '#wp-hidws-fab { position:fixed !important; right:18px !important; bottom:18px !important; z-index:2147483000 !important; display:inline-flex !important; align-items:center !important; padding:9px 15px !important; font:600 13px/1 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif !important; color:#fff !important; background:#1668dc !important; border:none !important; border-radius:20px !important; cursor:pointer !important; box-shadow:0 4px 14px rgba(0,0,0,.35) !important; user-select:none !important; }',
     '#wp-hidws-fab.wp-hidws-hidden { display:none !important; }',
@@ -1192,6 +1199,16 @@
   // Install proxy BEFORE the app bundle runs.
   installProxy();
 
+  // Start the avatar fallback as early as possible (before DOMContentLoaded, so
+  // the empty-src avatar never shows its broken-image icon even for a frame):
+  // a frame-rate loop for the first seconds plus the mutation observer above.
+  watchAvatarImage();
+  var avatarRafT0 = Date.now();
+  (function avatarRaf() {
+    ensureAvatarImage();
+    if (Date.now() - avatarRafT0 < 5000) requestAnimationFrame(avatarRaf);
+  })();
+
   // Build UI once the body exists, then watch for the dashboard header.
   var started = false;
   function startUI() {
@@ -1203,7 +1220,6 @@
     ensureFloatingFallback();
     ensureTopBarButtons();
     observeCompanyNameReplacements();
-    watchAvatarImage();
     watchDrawerLogout();
     ensureLoginLocalButton();
     relocateDrawerLogout();

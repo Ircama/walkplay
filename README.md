@@ -1,6 +1,6 @@
 # WalkPlay PEQ (Parametric Equalizer) — offline, for hidws integration.
 
-This repository is a self-contained, offline copy of the [WalkPlay PEQ web app](https://peq.szwalkplay.com/) (`https://peq.szwalkplay.com/`) wrapped in a **Vite** project so it can be run locally and deployed to **GitHub Pages**. It optionally allows [`hidws`](https://github.com/Ircama/hidws) WebSocket backend integration, so that the DAC device can be physically connected to a Linux system other than locally. (The Linux system communicates with the browser via WebSocket.)
+This repository is a self-contained, offline copy of the [WalkPlay PEQ web app](https://peq.szwalkplay.com/) (`https://peq.szwalkplay.com/`) wrapped in a **Vite** project so it can be run locally and deployed to **GitHub Pages**. It optionally allows [`hidws`](https://github.com/Ircama/hidws) WebSocket backend integration, so that the DAC device can be physically connected to a Linux system other than locally. (Thanks to *hidws* Linux HID/WebSocket gateway, the Linux system communicates with the browser via WebSocket.)
 
 The app lets you control a WalkPlay audio device (parametric equalizer, DAC filters, firmware version, etc.) directly in the browser. The portal itself no longer requires a WalkPlay account. Loggin in to https://peq.szwalkplay.com/ is optional, to populate the configuration of the "EQ Effect" parameters with online data (DEF, CUSTOM, ONLINE, SHARE).
 
