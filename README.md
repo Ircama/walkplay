@@ -1,13 +1,10 @@
 # WalkPlay PEQ (Parametric Equalizer) — offline, for hidws integration.
 
-This repository is a self-contained, offline copy of the [WalkPlay PEQ web app](https://peq.szwalkplay.com/) (`https://peq.szwalkplay.com/`) wrapped in a **Vite** project so it can be run locally and deployed to **GitHub Pages**. It optionally allows [`hidws`](https://github.com/Ircama/hidws) WebSocket backend integration, so that the DAC device can be physically connected to a Linux system other than locally. (Thanks to *hidws* Linux HID/WebSocket gateway, the Linux system communicates with the browser via WebSocket.)
+This repository is a self-contained, offline copy of the [WalkPlay PEQ web app](https://peq.szwalkplay.com/) (`https://peq.szwalkplay.com/`) wrapped in a [Vite](https://vitejs.dev/) project so it can be run locally and deployed to **GitHub Pages**. It optionally allows [`hidws`](https://github.com/Ircama/hidws) WebSocket backend integration, so that the DAC device can be physically connected to a Linux system other than locally. (Through the *hidws* Linux HID/WebSocket gateway, the Linux system communicates with the browser via WebSocket.)
 
-The app lets you control a WalkPlay audio device (parametric equalizer, DAC filters, firmware version, etc.) directly in the browser. The portal itself no longer requires a WalkPlay account. Loggin in to https://peq.szwalkplay.com/ is optional, to populate the configuration of the "EQ Effect" parameters with online data (DEF, CUSTOM, ONLINE, SHARE).
+The app lets you control a WalkPlay audio device (parametric equalizer, DAC filters, firmware version, etc.) directly in the browser. The portal itself no longer requires a WalkPlay account. Logging in to https://peq.szwalkplay.com/ is optional, to populate the configuration of the "EQ Effect" parameters with online data (DEF, CUSTOM, ONLINE, SHARE).
 
-## Stack
-
-- [Vite](https://vitejs.dev/) (project scaffold and build)
-- The application itself is the **prebuilt production bundle** based on `peq.szwalkplay.com`.
+Tested device: TTGK Technology Hi-MAX Audio dongle featuring a CB1200AU DAC (including a +/-10dB 8-band equalizer).
 
 ## Getting started
 
@@ -16,7 +13,7 @@ npm install        # install the Vite toolchain
 npm run dev        # start the dev server
 ```
 
-Then open **http://localhost:5173/walkplay/** (the base path mirrors the production URL `https://ircama.github.io/walkplay/`).
+Then open **http://localhost:5173/walkplay/**.
 
 ## Build
 
@@ -44,9 +41,9 @@ The connection mode and backend URL persist in `localStorage` (`walkplay_conn_mo
 
 ## Notes
 
-- **No login / no portal account**: the dashboard opens without login. The user (avatar) button allows optional login. The selected **language is saved locally**.
+- **No login / no portal account**: the dashboard opens without login. The user (avatar) button allows optional login. The selected language is saved locally.
 - **WebHID**: a WebHID-capable browser (Chrome / Edge / Opera) and a connected WalkPlay device are required for local device control.
-- **hidws**: run the `hidws` daemon on a machine that has the device plugged in, then connect from the app via `ws://host:9001` (or `wss://`). Because GitHub Pages is HTTPS, a plain `ws://` LAN backend is blocked by the browser as mixed content — use `ws://localhost:9001` (backend on this PC) or expose hidws over `wss://`, or open the app from `http://localhost` instead.
+- **hidws**: run the `hidws` daemon on a machine that has the device plugged in, then connect from the app via `ws://host:9001` (or `wss://`). Because GitHub Pages is HTTPS, a plain `ws://` LAN backend might be blocked by the browser as mixed content — use `ws://localhost:9001` (backend on this PC) or expose hidws over `wss://`, or open the app from `http://localhost` instead.
 
 ## License
 
