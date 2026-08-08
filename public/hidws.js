@@ -932,6 +932,11 @@
     ['需要升级', 'upgrade required'],
     ['有新的固件版本', 'a new firmware version is available'],
     ['有新的版本', 'a new version is available'],
+    // Portal API "login expired" messages (fallback: the bundle no longer shows
+    // the toast, but translate it if it appears anywhere).
+    ['登录过期，请重新登录', 'Session expired, please log in again'],
+    ['登录过期', 'Session expired'],
+    ['请重新登录', 'Please log in again'],
   ];
   function applyCompanyNameReplacements(root) {
     if (!root || !root.nodeType) return;
